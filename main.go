@@ -3,6 +3,7 @@ package main
 import (
 	"booking-app/helper"
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -22,37 +23,42 @@ type UserData struct {
 	numberOfTickets uint
 }
 
+var wg = sync.WaitGroup{}
+
 func main() {
 	greetUsers()
 	
-	for {
-		firstName, lastName, email, userTickets := getUserInput()
-		isValidName, isValidEmail, isValidTicketNumber := helper.ValidateUserInput(firstName, lastName, email, userTickets, remainingTickets)
+	
+	firstName, lastName, email, userTickets := getUserInput()
+	isValidName, isValidEmail, isValidTicketNumber := helper.ValidateUserInput(firstName, lastName, email, userTickets, remainingTickets)
 
-		if isValidName && isValidEmail && isValidTicketNumber  {
-			bookTicket(userTickets, firstName, lastName, email)
-			go sendTicket(userTickets, firstName, lastName, email)
+	if isValidName && isValidEmail && isValidTicketNumber  {
+		bookTicket(userTickets, firstName, lastName, email)
+		// add the number of threads(goroutines) to wait for
+		wg.Add(1)
+		go sendTicket(userTickets, firstName, lastName, email)
 
-			firstNames := getFirstNames()
-			fmt.Printf("The first names of our bookings are: %v\n", firstNames)
+		firstNames := getFirstNames()
+		fmt.Printf("The first names of our bookings are: %v\n", firstNames)
 
-			noTicketsAvailable := remainingTickets == 0
-			if noTicketsAvailable {
-				// end program
-				fmt.Println("Our conference is booked out. Come back next year.")
-				break
-			}
-		} else {
-			if !isValidName {
-				fmt.Println("First name or last name you entered is too short")
-			} else if !isValidEmail {
-				fmt.Println("Email address you entered doesn't contain @sign")
-			} else if !isValidTicketNumber {
-				fmt.Println("Number of tickets you entered is invalid")
-			}
-			// continue
-		}	
+		noTicketsAvailable := remainingTickets == 0
+		if noTicketsAvailable {
+			// end program
+			fmt.Println("Our conference is booked out. Come back next year.")
+			// break
+		}
+	} else {
+		if !isValidName {
+			fmt.Println("First name or last name you entered is too short")
+		} else if !isValidEmail {
+			fmt.Println("Email address you entered doesn't contain @sign")
+		} else if !isValidTicketNumber {
+			fmt.Println("Number of tickets you entered is invalid")
+		}
+		// continue
 	}
+	// waits all the threads to finish before exiting the program
+	wg.Wait()
 }
 
 func greetUsers() {
@@ -112,9 +118,11 @@ func bookTicket(userTickets uint, firstName string, lastName string, email strin
 }
 
 func sendTicket(userTickets uint, firstName string, lastName string, email string) {
-	time.Sleep(10 * time.Second)
+	time.Sleep(50 * time.Second)
 	var ticket = fmt.Sprintf("%v tickets for %v %v", userTickets, firstName, lastName)
 	fmt.Println("###########################")
 	fmt.Printf("Sending ticket:\n %v \nto email address: %v\n", ticket, email)
 	fmt.Println("###########################")
+	// removes the thread from the waiting list => decrements the number of threads to wait for
+	wg.Done()
 }
